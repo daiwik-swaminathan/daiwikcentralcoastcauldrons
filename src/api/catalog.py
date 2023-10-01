@@ -13,12 +13,11 @@ def get_catalog():
 
     num_red_potions = 0
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-        num_red_potions_row = result.fetchone()
-        num_red_potions = num_red_potions_row[0]
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        first_row = result.first()
+        print(f"red potions {first_row.num_red_potions}")
 
-        # debug
-        print('Entered catalog new block. num_red_potions is', num_red_potions)
+        num_red_potions = first_row.num_red_potions
 
     # Can return a max of 20 items.
 

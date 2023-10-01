@@ -47,35 +47,31 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
 
     # Get the amount of red potions and gold from the database
-    num_potions = 0
+    num_red_potions = 0
     gold = 0
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-        num_potions_row = result.fetchone()
-        num_potions = num_potions_row[0]
+        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        first_row = result.first()
+        print(f"red potions {first_row.num_red_potions}")
+        print(f"gold {first_row.gold}")
 
-        result = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
-        gold_row = result.fetchone()
-        gold = num_potions_row[0]
-
-        # debug
-        print('Entered carts new block. num_red_potions is', num_red_potions)
-        print('Entered carts new block. gold is', gold)
+        num_red_potions = first_row.num_red_potions
+        gold = first_row.gold
 
     # Check if the number of red potions in inventory is 10+
     # In this case, don't go through with the sale
-    if num_potions >= 10:
+    if num_red_potions >= 10:
         print('Carts checkout. We have more than 10 red potions.')
         return {"total_potions_bought": 0, "total_gold_paid": 0}
 
     # We have less than 10 red potions
     # Subtract number of potions, increase gold amount
-    num_potions -= 1
+    num_red_potions -= 1
     gold += 50
 
     # Update the table
     with engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {num_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {num_red_potions}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
         print('Updated the database table')
 
