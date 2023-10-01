@@ -21,7 +21,8 @@ def get_catalog():
 
     # Can return a max of 20 items.
 
-    return [
+    if(num_red_potions > 0):
+        return [
             {
                 "sku": "RED_POTION_0",
                 "name": "red potion",
@@ -30,3 +31,5 @@ def get_catalog():
                 "potion_type": [100, 0, 0, 0],
             }
         ]
+
+    return []
