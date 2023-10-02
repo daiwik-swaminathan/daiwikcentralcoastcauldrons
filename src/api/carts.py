@@ -70,7 +70,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     gold += 50
 
     # Update the table
-    with engine.begin() as connection:
+    with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {num_red_potions}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
         print('Updated the database table')
