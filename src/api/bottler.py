@@ -20,27 +20,21 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     """ """
     print(potions_delivered)
 
-    # Decrease red ml by 100, increase red potions by 10
-
     ml_in_barrels = 0
     num_red_potions = 0
     with db.engine.begin() as connection:
 
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
-        print(f"red ml {first_row.num_red_ml}")
-        print(f"num_red_potions {first_row.num_red_potions}")
 
         ml_in_barrels = first_row.num_red_ml
         num_red_potions = first_row.num_red_potions
 
-        num_potions_to_brew = (ml_in_barrels // 100)
-        num_red_potions += num_potions_to_brew
-        ml_in_barrels -= 100 * num_potions_to_brew
+        num_red_potions += potions_delivered[0].quantity
+        ml_in_barrels -= 100 * potions_delivered[0].quantity
 
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {ml_in_barrels}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
-        print('Updated the database table')
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {num_red_potions}"))
 
     return "OK"
 
@@ -56,17 +50,20 @@ def get_bottle_plan():
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
     # Initial logic: bottle all barrels into red potions.
-    num_red_potions = 0
+
+    ml_in_barrels = 0
+    num_potions_to_brew = 0
     with db.engine.begin() as connection:
+
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
-        print(f"red potions {first_row.num_red_potions}")
 
-        num_red_potions = first_row.num_red_potions
+        ml_in_barrels = first_row.num_red_ml
+        num_potions_to_brew = (ml_in_barrels // 100)
 
     return [
             {
                 "potion_type": [100, 0, 0, 0],
-                "quantity": num_red_potions,
+                "quantity": num_potions_to_brew,
             }
         ]
