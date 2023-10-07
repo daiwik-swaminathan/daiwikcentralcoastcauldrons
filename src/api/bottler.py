@@ -21,20 +21,37 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     print(potions_delivered)
 
     ml_in_barrels = 0
-    num_red_potions = 0
+    num_potions = 0
+    ml_type = ''
+    potion_type = ''
     with db.engine.begin() as connection:
 
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        ml_in_barrels = first_row.num_red_ml
-        num_red_potions = first_row.num_red_potions
+        last_barrel_type = first_row.last_barrel_type
 
-        num_red_potions += potions_delivered[0].quantity
+        if last_barrel_type == 0:
+            ml_in_barrels = first_row.num_red_ml
+            num_potions = first_row.num_red_potions
+            ml_type = 'num_red_ml'
+            potion_type = 'num_red_potions'
+        elif last_barrel_type == 1:
+            ml_in_barrels = first_row.num_green_ml
+            num_potions = first_row.num_green_potions
+            ml_type = 'num_green_ml'
+            potion_type = 'num_green_potions'
+        else:
+            ml_in_barrels = first_row.num_blue_ml
+            num_potions = first_row.num_blue_potions
+            ml_type = 'num_blue_ml'
+            potion_type = 'num_blue_potions'
+
+        num_potions += potions_delivered[0].quantity
         ml_in_barrels -= 100 * potions_delivered[0].quantity
 
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_ml = {ml_in_barrels}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET num_red_potions = {num_red_potions}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
 
     return "OK"
 
@@ -53,17 +70,31 @@ def get_bottle_plan():
 
     ml_in_barrels = 0
     num_potions_to_brew = 0
+    potion_type = [0, 0, 0, 0]
     with db.engine.begin() as connection:
 
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        ml_in_barrels = first_row.num_red_ml
+        last_barrel_type = first_row.last_barrel_type
+
+        if last_barrel_type == 0:
+            ml_in_barrels = first_row.num_red_ml
+            potion_type = [100, 0, 0, 0]
+        elif last_barrel_type == 1:
+            ml_in_barrels = first_row.num_green_ml
+            potion_type = [0, 100, 0, 0]
+        else:
+            ml_in_barrels = first_row.num_blue_ml
+            potion_type = [0, 0, 100, 0]
+
         num_potions_to_brew = (ml_in_barrels // 100)
+
+    print('potion type:', potion_type, 'quantity:', num_potions_to_brew)
 
     return [
             {
-                "potion_type": [100, 0, 0, 0],
+                "potion_type": potion_type,
                 "quantity": num_potions_to_brew,
             }
         ]
