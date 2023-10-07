@@ -68,20 +68,16 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
         gold = first_row.gold
 
-    # Check if the number of potions in inventory is 10+
-    # In this case, don't go through with the sale
-    # if num_potions >= 10:
-    #     print('Carts checkout. We have more than 10 potions for', potion_type)
-    #     return {"total_potions_bought": 0, "total_gold_paid": 0}
+    total_potions_bought = num_potions
 
     # We have less than 10 red potions
-    # For now, only one potion can be bought at a time
-    num_potions -= 1
-    gold += 50
+    # For now, we sell all the potions in inventory
+    gold += (50 * num_potions)
+    num_potions = 0
 
     # Update the table
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
 
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": (50 * total_potions_bought)}
