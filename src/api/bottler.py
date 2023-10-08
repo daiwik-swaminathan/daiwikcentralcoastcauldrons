@@ -20,6 +20,12 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     """ """
     print(potions_delivered)
 
+    if potions_delivered == []:
+        return "OK"
+
+    if potions_delivered[0].quantity == 0:
+        return "OK"
+
     ml_in_barrels = 0
     num_potions = 0
     ml_type = ''
@@ -47,8 +53,17 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
             ml_type = 'num_blue_ml'
             potion_type = 'num_blue_potions'
 
+        print('bottler deliver endpoint (before value update)')
+        print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
+        print('num_potions is', num_potions)
+
+
         num_potions += potions_delivered[0].quantity
         ml_in_barrels -= 100 * potions_delivered[0].quantity
+
+        print('bottler deliver endpoint (after value update)')
+        print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
+        print('num_potions is', num_potions)
 
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
@@ -95,6 +110,9 @@ def get_bottle_plan():
         num_potions_to_brew = (ml_in_barrels // 100)
 
     print('potion type:', potion_type, 'quantity:', num_potions_to_brew)
+
+    if num_potions_to_brew == 0:
+        return []
 
     return [
             {

@@ -23,6 +23,9 @@ class Barrel(BaseModel):
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     """ """
 
+    if(len(barrels_delivered) == 0):
+        return "OK"
+
     print('Barrel has been delivered!')
 
     print(barrels_delivered)
@@ -54,6 +57,10 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         print('Converting to ml...')
         gold -= barrels_delivered[0].price
         ml_in_barrels += barrels_delivered[0].ml_per_barrel
+
+        print('Barrel deliver endpoint')
+        print('gold is:', gold)
+        print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
 
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))

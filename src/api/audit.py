@@ -35,6 +35,10 @@ def get_inventory():
         ml_in_barrels += first_row.num_green_ml
         ml_in_barrels += first_row.num_blue_ml
 
+    print('ml_in_barrels is', ml_in_barrels)
+    print('num_potions is', num_potions)
+    print('gold is', gold)
+
     return {"number_of_potions": num_potions, "ml_in_barrels": ml_in_barrels, "gold": gold}
 
 class Result(BaseModel):
