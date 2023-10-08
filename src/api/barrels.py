@@ -22,6 +22,9 @@ class Barrel(BaseModel):
 @router.post("/deliver")
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     """ """
+
+    print('Barrel has been delivered!')
+
     print(barrels_delivered)
 
     ml_in_barrels = 0
@@ -32,21 +35,23 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        last_barrel_type = first_row.last_barrel_type
-
-        if last_barrel_type == 0:
+        if barrels_delivered[0].sku == 'SMALL_RED_BARREL':
+            print('Received small red barrel')
             ml_in_barrels = first_row.num_red_ml
             ml_type = 'num_red_ml'
-        elif last_barrel_type == 1:
+        elif barrels_delivered[0].sku == 'SMALL_GREEN_BARREL':
+            print('Received small green barrel')
             ml_in_barrels = first_row.num_green_ml
             ml_type = 'num_green_ml'
         else:
+            print('Received small blue barrel')
             ml_in_barrels = first_row.num_blue_ml
             ml_type = 'num_blue_ml'
 
         gold = first_row.gold
 
         # We will, for now, always be buying only one barrel
+        print('Converting to ml...')
         gold -= barrels_delivered[0].price
         ml_in_barrels += barrels_delivered[0].ml_per_barrel
 
@@ -59,6 +64,9 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
+
+    print('Taking a look at barrel catalog...')
+
     print(wholesale_catalog)
 
     # Parse through the barrel merchant's catalog
@@ -76,14 +84,15 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
         last_barrel_type = first_row.last_barrel_type
 
+        print('Last barrel type is:', last_barrel_type)
+
     # Go through the merchant's catalog and figure out which barrel we should buy this time
     for barrel in wholesale_catalog:
 
         # If the red barrel is available AND the last barrel purchased was a blue barrel
         if barrel.potion_type[0] == 0 and last_barrel_type == 2:
-            last_barrel_type = 0
-            with db.engine.begin() as connection:
-                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {last_barrel_type}"))
+            print('Buying a small red barrel')
+            
             return [
                 {
                     "sku": "SMALL_RED_BARREL",
@@ -93,9 +102,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         
         # If the green barrel is available AND the last barrel purchased was a red barrel
         if barrel.potion_type[0] == 1 and last_barrel_type == 0:
-            last_barrel_type = 1
-            with db.engine.begin() as connection:
-                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {last_barrel_type}"))
+            print('Buying a small green barrel')
+            
             return [
                 {
                     "sku": "SMALL_GREEN_BARREL",
@@ -105,9 +113,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
         # If the blue barrel is available AND the last barrel purchased was a green barrel
         if barrel.potion_type[0] == 2 and last_barrel_type == 1:
-            last_barrel_type = 2
-            with db.engine.begin() as connection:
-                connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {last_barrel_type}"))
+            print('Buying a small blue barrel')
+            
             return [
                 {
                     "sku": "SMALL_BLUE_BARREL",
@@ -116,9 +123,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             ]
 
     # By default, buy a red barrel
-    last_barrel_type = 0
-    with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {last_barrel_type}"))
     return [
         {
             "sku": "SMALL_RED_BARREL",

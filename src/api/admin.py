@@ -17,6 +17,8 @@ def reset():
     inventory, and all barrels are removed from inventory. Carts are all reset.
     """
 
+    print('Resetting shop...')
+
     # Update the table
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_potions = 0"))

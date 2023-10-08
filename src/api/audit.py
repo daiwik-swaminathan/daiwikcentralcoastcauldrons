@@ -14,6 +14,8 @@ router = APIRouter(
 @router.get("/inventory")
 def get_inventory():
     """ """
+
+    print('In get inventory')
     
     num_potions = 0
     ml_in_barrels = 0

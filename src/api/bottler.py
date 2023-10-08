@@ -66,7 +66,7 @@ def get_bottle_plan():
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
 
-    # Initial logic: bottle all barrels into red potions.
+    print('Planning to convert ml to bottles...')
 
     ml_in_barrels = 0
     num_potions_to_brew = 0
@@ -79,15 +79,19 @@ def get_bottle_plan():
         last_barrel_type = first_row.last_barrel_type
 
         if last_barrel_type == 0:
+            print('Going to brew red potions...')
             ml_in_barrels = first_row.num_red_ml
             potion_type = [100, 0, 0, 0]
         elif last_barrel_type == 1:
+            print('Going to brew green potions...')
             ml_in_barrels = first_row.num_green_ml
             potion_type = [0, 100, 0, 0]
         else:
+            print('Going to brew blue potions...')
             ml_in_barrels = first_row.num_blue_ml
             potion_type = [0, 0, 100, 0]
 
+        print('ml in stock for potion', potion_type, ':', ml_in_barrels)
         num_potions_to_brew = (ml_in_barrels // 100)
 
     print('potion type:', potion_type, 'quantity:', num_potions_to_brew)

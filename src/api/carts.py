@@ -46,6 +46,8 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
 
+    print('In checkout...')
+
     # Get the amount of red potions and gold from the database
     num_potions = 0
     gold = 0
@@ -57,12 +59,15 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         last_barrel_type = first_row.last_barrel_type
 
         if last_barrel_type == 0:
+            print('Buying red potions...')
             num_potions = first_row.num_red_potions
             potion_type = 'num_red_potions'
         elif last_barrel_type == 1:
+            print('Buying green potions...')
             num_potions = first_row.num_green_potions
             potion_type = 'num_green_potions'
         else:
+            print('Buying blue potions...')
             num_potions = first_row.num_blue_potions
             potion_type = 'num_blue_potions'
 
@@ -70,7 +75,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     total_potions_bought = num_potions
 
-    # We have less than 10 red potions
+    print('Buying', total_potions_bought, 'potions...')
+
     # For now, we sell all the potions in inventory
     gold += (50 * num_potions)
     num_potions = 0
@@ -79,5 +85,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {(last_barrel_type + 1) % 3}"))
 
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": (50 * total_potions_bought)}
