@@ -29,14 +29,14 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        last_barrel_type = first_row.last_barrel_type
+        barrel_to_buy = first_row.barrel_to_buy
 
-        if last_barrel_type == 0:
+        if barrel_to_buy == 0:
             ml_in_barrels = first_row.num_red_ml
             num_potions = first_row.num_red_potions
             ml_type = 'num_red_ml'
             potion_type = 'num_red_potions'
-        elif last_barrel_type == 1:
+        elif barrel_to_buy == 1:
             ml_in_barrels = first_row.num_green_ml
             num_potions = first_row.num_green_potions
             ml_type = 'num_green_ml'
@@ -76,13 +76,13 @@ def get_bottle_plan():
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        last_barrel_type = first_row.last_barrel_type
+        barrel_to_buy = first_row.barrel_to_buy
 
-        if last_barrel_type == 0:
+        if barrel_to_buy == 0:
             print('Going to brew red potions...')
             ml_in_barrels = first_row.num_red_ml
             potion_type = [100, 0, 0, 0]
-        elif last_barrel_type == 1:
+        elif barrel_to_buy == 1:
             print('Going to brew green potions...')
             ml_in_barrels = first_row.num_green_ml
             potion_type = [0, 100, 0, 0]

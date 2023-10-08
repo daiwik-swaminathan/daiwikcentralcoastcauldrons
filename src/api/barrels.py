@@ -76,21 +76,21 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     # Ex: It will first look to buy a green barrel, blue barrel, red barrel, and then back to green.
 
     # Get which kind of barrel was purchased last
-    last_barrel_type = 0
+    barrel_to_buy = 0
     with db.engine.begin() as connection:
 
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        last_barrel_type = first_row.last_barrel_type
+        barrel_to_buy = first_row.barrel_to_buy
 
-        print('Last barrel type is:', last_barrel_type)
+        print('Last barrel type is:', barrel_to_buy)
 
     # Go through the merchant's catalog and figure out which barrel we should buy this time
     for barrel in wholesale_catalog:
 
         # If the red barrel is available AND the last barrel purchased was a blue barrel
-        if barrel.potion_type[0] == 0 and last_barrel_type == 2:
+        if barrel.sku == 'SMALL_RED_BARREL' and barrel_to_buy == 0:
             print('Buying a small red barrel')
             
             return [
@@ -101,7 +101,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             ] 
         
         # If the green barrel is available AND the last barrel purchased was a red barrel
-        if barrel.potion_type[0] == 1 and last_barrel_type == 0:
+        if barrel.sku == 'SMALL_GREEN_BARREL' and barrel_to_buy == 1:
             print('Buying a small green barrel')
             
             return [
@@ -112,7 +112,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             ]
 
         # If the blue barrel is available AND the last barrel purchased was a green barrel
-        if barrel.potion_type[0] == 2 and last_barrel_type == 1:
+        if barrel.sku == 'SMALL_BLUE_BARREL' and barrel_to_buy == 2:
             print('Buying a small blue barrel')
             
             return [

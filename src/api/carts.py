@@ -56,13 +56,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        last_barrel_type = first_row.last_barrel_type
+        barrel_to_buy = first_row.barrel_to_buy
 
-        if last_barrel_type == 0:
+        if barrel_to_buy == 0:
             print('Buying red potions...')
             num_potions = first_row.num_red_potions
             potion_type = 'num_red_potions'
-        elif last_barrel_type == 1:
+        elif barrel_to_buy == 1:
             print('Buying green potions...')
             num_potions = first_row.num_green_potions
             potion_type = 'num_green_potions'
@@ -85,6 +85,6 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     with db.engine.begin() as connection:
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET last_barrel_type = {(last_barrel_type + 1) % 3}"))
+        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
 
     return {"total_potions_bought": total_potions_bought, "total_gold_paid": (50 * total_potions_bought)}

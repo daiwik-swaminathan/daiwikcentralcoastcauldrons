@@ -28,7 +28,7 @@ def reset():
         connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_blue_potions = 0"))
         connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = 0"))
         connection.execute(sqlalchemy.text("UPDATE global_inventory SET gold = 100"))
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET last_barrel_type = 0"))
+        connection.execute(sqlalchemy.text("UPDATE global_inventory SET barrel_to_buy = 0"))
         print('Updated the database table')
 
     return "OK"
