@@ -4,6 +4,8 @@ from src.api import auth
 import sqlalchemy
 from src import database as db
 
+temp_cart_table = {}
+
 router = APIRouter(
     prefix="/carts",
     tags=["cart"],
@@ -35,6 +37,8 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
+
+    temp_cart_table[cart_id] = cart_item.quantity
 
     return "OK"
 
@@ -73,13 +77,16 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
         gold = first_row.gold
 
-    total_potions_bought = num_potions
+    total_potions_bought = temp_cart_table[cart_id]
+
+    if total_potions_bought > num_potions:
+        return {"total_potions_bought": 0, "total_gold_paid": 0}
 
     print('Buying', total_potions_bought, 'potions...')
 
     # For now, we sell all the potions in inventory
-    gold += (50 * num_potions)
-    num_potions = 0
+    gold += (50 * total_potions_bought)
+    num_potions -= total_potions_bought
 
     # Update the table
     with db.engine.begin() as connection:
