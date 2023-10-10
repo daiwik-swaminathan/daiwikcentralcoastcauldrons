@@ -38,6 +38,8 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
+        barrel_to_buy = first_row.barrel_to_buy
+
         if barrels_delivered[0].sku == 'SMALL_RED_BARREL':
             print('Received small red barrel')
             ml_in_barrels = first_row.num_red_ml
