@@ -57,6 +57,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
         print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
         print('num_potions is', num_potions)
 
+        old_ml = ml_in_barrels
 
         num_potions += potions_delivered[0].quantity
         ml_in_barrels -= 100 * potions_delivered[0].quantity
@@ -67,6 +68,8 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
 
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
+        if ml_in_barrels < old_ml:
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
 
     return "OK"
 

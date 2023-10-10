@@ -38,7 +38,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
         first_row = result.first()
 
-        barrel_to_buy = first_row.barrel_to_buy
+        # barrel_to_buy = first_row.barrel_to_buy
 
         if barrels_delivered[0].sku == 'SMALL_RED_BARREL':
             print('Received small red barrel')
@@ -55,7 +55,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 
         gold = first_row.gold
 
-        old_ml = ml_in_barrels
+        # old_ml = ml_in_barrels
 
         # We will, for now, always be buying only one barrel
         print('Converting to ml...')
@@ -70,8 +70,8 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
 
         # If we actually converted barrel to ml, then buy another kind of barrel next time around
-        if ml_in_barrels > old_ml:
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
+        # if ml_in_barrels > old_ml:
+        #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
 
     return "OK"
 
