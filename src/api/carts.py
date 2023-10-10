@@ -83,7 +83,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     print('Buying', total_potions_bought, 'potions...')
 
     # For now, we sell all the potions in inventory
-    gold += (50 * total_potions_bought)
+    gold += (1 * total_potions_bought)
     num_potions -= total_potions_bought
 
     # Update the table
