@@ -53,7 +53,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     print('In checkout...')
 
-    (total_potions_bought, item_sku) = temp_cart_table[cart_id]
+    (item_sku, total_potions_bought) = temp_cart_table[cart_id]
 
     num_potions = 0
     gold = 0
