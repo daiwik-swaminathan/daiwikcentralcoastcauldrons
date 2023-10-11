@@ -5,6 +5,7 @@ import sqlalchemy
 from src import database as db
 
 temp_cart_table = {}
+cart_counter = 0
 
 router = APIRouter(
     prefix="/carts",
@@ -20,7 +21,13 @@ class NewCart(BaseModel):
 @router.post("/")
 def create_cart(new_cart: NewCart):
     """ """
-    return {"cart_id": 1}
+    global cart_counter
+    temp_id = cart_counter
+    cart_counter += 1
+
+    print('temp id is:', temp_id, 'cart_counter is', cart_counter)
+    # need to do this
+    return {"cart_id": temp_id}
 
 
 @router.get("/{cart_id}")
@@ -52,6 +59,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     """ """
 
     print('In checkout...')
+
+    print('cart checkout is:', cart_checkout.payment)
 
     (item_sku, total_potions_bought) = temp_cart_table[cart_id]
 
@@ -93,4 +102,4 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         # if total_potions_bought > 0:
         #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
 
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": (50 * total_potions_bought)}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_potions_bought}
