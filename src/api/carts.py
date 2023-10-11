@@ -92,7 +92,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     print('Buying', total_potions_bought, 'potions...')
 
     # For now, we sell all the potions in inventory
-    gold += (1 * total_potions_bought)
+    gold += (50 * total_potions_bought)
     num_potions -= total_potions_bought
 
     # Update the table
@@ -102,4 +102,4 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         # if total_potions_bought > 0:
         #     connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
 
-    return {"total_potions_bought": total_potions_bought, "total_gold_paid": total_potions_bought}
+    return {"total_potions_bought": total_potions_bought, "total_gold_paid": 50*total_potions_bought}
