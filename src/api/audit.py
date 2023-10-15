@@ -27,9 +27,8 @@ def get_inventory():
 
         gold = first_row.gold
 
-        num_potions = first_row.num_red_potions
-        num_potions += first_row.num_green_potions
-        num_potions += first_row.num_blue_potions
+        sum_result = connection.execute(sqlalchemy.text("SELECT SUM(inventory) FROM catalogs"))
+        num_potions = sum_result.scalar()
 
         ml_in_barrels = first_row.num_red_ml
         ml_in_barrels += first_row.num_green_ml

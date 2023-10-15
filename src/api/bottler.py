@@ -26,50 +26,58 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     if potions_delivered[0].quantity == 0:
         return "OK"
 
-    ml_in_barrels = 0
-    num_potions = 0
-    ml_type = ''
-    potion_type = ''
     with db.engine.begin() as connection:
 
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        first_row = result.first()
+        mapper = {}
 
-        barrel_to_buy = first_row.barrel_to_buy
+        if potions_delivered[0].potion_type[0] > 0:
+            mapper['num_red_ml'] = potions_delivered[0].potion_type[0]
 
-        if barrel_to_buy == 0:
-            ml_in_barrels = first_row.num_red_ml
-            num_potions = first_row.num_red_potions
-            ml_type = 'num_red_ml'
-            potion_type = 'num_red_potions'
-        elif barrel_to_buy == 1:
-            ml_in_barrels = first_row.num_green_ml
-            num_potions = first_row.num_green_potions
-            ml_type = 'num_green_ml'
-            potion_type = 'num_green_potions'
-        else:
-            ml_in_barrels = first_row.num_blue_ml
-            num_potions = first_row.num_blue_potions
-            ml_type = 'num_blue_ml'
-            potion_type = 'num_blue_potions'
+        if potions_delivered[0].potion_type[1] > 0:
+            mapper['num_green_ml'] = potions_delivered[0].potion_type[1]
 
-        print('bottler deliver endpoint (before value update)')
-        print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
-        print('num_potions is', num_potions)
+        if potions_delivered[0].potion_type[2] > 0:
+            mapper['num_blue_ml'] = potions_delivered[0].potion_type[2]
 
-        old_ml = ml_in_barrels
+        global_inventory_result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        global_first_row = global_inventory_result.first()
+        
+        red_ml = global_first_row.num_red_ml
+        green_ml = global_first_row.num_green_ml
+        blue_ml = global_first_row.num_blue_ml
 
-        num_potions += potions_delivered[0].quantity
-        ml_in_barrels -= 100 * potions_delivered[0].quantity
+        # print('red ml in stock for potion', potion_type, ':', red_ml)
+        # print('green ml in stock for potion', potion_type, ':', green_ml)
+        # print('blue ml in stock for potion', potion_type, ':', blue_ml)
 
-        print('bottler deliver endpoint (after value update)')
-        print('ml_type is', ml_type, 'ml_in_barrels is', ml_in_barrels)
-        print('num_potions is', num_potions)
+        # take a dictionary containing the ml requirements of the specific potion type
+        # ex: 50 50 0 0
+        # then filter out the zeros
 
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
-        connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {potion_type} = {num_potions}"))
-        if ml_in_barrels < old_ml:
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET barrel_to_buy = {(barrel_to_buy + 1) % 3}"))
+        mixed_or_full = max(potions_delivered[0].potion_type)
+        requirement_nums = list(mapper.values())
+        ml_types = list(mapper.keys())
+
+        if(mixed_or_full == 100):
+            # Update the ml
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_types[0]} = {ml_types[0]} - :ml_consumed"),
+                [{'ml_consumed':(potions_delivered[0].quantity*mixed_or_full)}])
+
+        elif(mixed_or_full == 50):
+            # Update the ml
+            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_types[0]} = {ml_types[0]} - :ml_consumed, {ml_types[1]} = {ml_types[1]} - :ml_consumed"),
+                [{'ml_consumed': potions_delivered[0].quantity * mixed_or_full}])
+
+            # connection.execute(sqlalchemy.text("UPDATE global_inventory SET :ml_type1 = :ml_type1 - :ml_consumed, :ml_type2 = :ml_type2 - :ml_consumed"),
+            #     [{'ml_type1':ml_types[0], 'ml_type2':ml_types[1], 'ml_consumed':(potions_delivered[0].quantity*mixed_or_full)}])
+
+        # Update the inventory for this potion type
+        connection.execute(sqlalchemy.text(f"UPDATE catalogs SET inventory = inventory + :num_potions WHERE red = :red AND green = :green AND blue = :blue AND dark = :dark"),
+            [{'num_potions':potions_delivered[0].quantity,
+              'red':potions_delivered[0].potion_type[0],
+              'green':potions_delivered[0].potion_type[1],
+              'blue':potions_delivered[0].potion_type[2],
+              'dark':potions_delivered[0].potion_type[3]}])
 
     return "OK"
 
@@ -91,28 +99,50 @@ def get_bottle_plan():
     potion_type = [0, 0, 0, 0]
     with db.engine.begin() as connection:
 
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        first_row = result.first()
+        # For assignment 3, I am giving priority to mixed potions to be brewed first
+        potion_result = connection.execute(sqlalchemy.text("SELECT * FROM catalogs ORDER BY inventory, CASE WHEN red != 100 AND green != 100 AND blue != 100 AND dark != 100 THEN 0 ELSE 1 END;"))
+        first_row = potion_result.first()
+        potion_type = [first_row.red, first_row.green, first_row.blue, first_row.dark]
 
-        barrel_to_buy = first_row.barrel_to_buy
+        global_inventory_result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+        global_first_row = global_inventory_result.first()
+        red_ml = global_first_row.num_red_ml
+        green_ml = global_first_row.num_green_ml
+        blue_ml = global_first_row.num_blue_ml
 
-        if barrel_to_buy == 0:
-            print('Going to brew red potions...')
-            ml_in_barrels = first_row.num_red_ml
-            potion_type = [100, 0, 0, 0]
-        elif barrel_to_buy == 1:
-            print('Going to brew green potions...')
-            ml_in_barrels = first_row.num_green_ml
-            potion_type = [0, 100, 0, 0]
-        else:
-            print('Going to brew blue potions...')
-            ml_in_barrels = first_row.num_blue_ml
-            potion_type = [0, 0, 100, 0]
+        mapper = {}
 
-        print('ml in stock for potion', potion_type, ':', ml_in_barrels)
-        num_potions_to_brew = (ml_in_barrels // 100)
+        if first_row.red > 0:
+            mapper['num_red_ml'] = (first_row.red, red_ml)
 
-    print('potion type:', potion_type, 'quantity:', num_potions_to_brew)
+        if first_row.green > 0:
+            mapper['num_green_ml'] = (first_row.green, green_ml)
+
+        if first_row.blue > 0:
+            mapper['num_blue_ml'] = (first_row.blue, blue_ml)
+
+        print('red ml in stock for potion', potion_type, ':', red_ml)
+        print('green ml in stock for potion', potion_type, ':', green_ml)
+        print('blue ml in stock for potion', potion_type, ':', blue_ml)
+
+        # take a dictionary containing the ml requirements of the specific potion type
+        # ex: 50 50 0 0
+        # then filter out the zeros
+
+        mixed_or_full = max(potion_type)
+        requirement_nums = list(mapper.values())
+        ml_types = list(mapper.keys())
+
+        if(mixed_or_full == 100):
+            # Brew up to 5 potions of a single color
+            num_potions_to_brew = min(requirement_nums[0][1] // 100, 5)
+            # connection.execute(sqlalchemy.text("UPDATE global_inventory SET :ml_type = :ml_type - :ml_consumed"),
+            #     [{'ml_type':ml_types[0], 'ml_consumed':(num_potions_to_brew*100)}])
+        elif(mixed_or_full == 50):
+            # Brew up to 5 potions of a mixed color
+            # For now, we assume we can only mix 50/50 potions
+            num_potions_to_brew = min(min(requirement_nums[0][1] // 50, requirement_nums[1][1] // 50), 5)
+            # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
 
     if num_potions_to_brew == 0:
         return []
