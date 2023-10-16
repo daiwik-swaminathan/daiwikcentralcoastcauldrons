@@ -95,7 +95,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
                             [{'cart_id':cart_id}])
 
         # Remove the cart items from the customer's cart
-        connection.execute(sqlalchemy.text("DELETE FROM cart_items WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
+        # connection.execute(sqlalchemy.text("DELETE FROM cart_items WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
 
 
     return {"total_potions_bought": num_potions, "total_gold_paid": 50*num_potions}
