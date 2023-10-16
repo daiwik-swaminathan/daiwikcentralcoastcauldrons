@@ -152,18 +152,5 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     #             }
     #         ]
 
-    # For assignment 3, we will always be buying a small barrel of each color
-    return [
-        {
-            "sku": "SMALL_RED_BARREL",
-            "quantity": 1,
-        },
-        {
-            "sku": "SMALL_GREEN_BARREL",
-            "quantity": 1,
-        },
-        {
-            "sku": "SMALL_BLUE_BARREL",
-            "quantity": 1,
-        }
-    ]
+    # Need to slow my roll with the barrel purchases...
+    return []
