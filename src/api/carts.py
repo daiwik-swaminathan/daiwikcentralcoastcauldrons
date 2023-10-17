@@ -83,10 +83,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
         gold = first_row.gold
 
+        price_result = connection.execute(sqlalchemy.text("SELECT price FROM cart_items JOIN catalogs ON catalogs.catalog_id = cart_items.catalog_id WHERE cart_id = :cart_id LIMIT 1;"), [{'cart_id':cart_id}])
+        potion_price = price_result.scalar()
+
     print('Buying', num_potions, 'potions...')
 
     # For now, we sell all the potions in inventory
-    gold += (50 * num_potions)
+    gold += (potion_price * num_potions)
 
     # Update the table
     with db.engine.begin() as connection:
@@ -94,11 +97,8 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         connection.execute(sqlalchemy.text("UPDATE catalogs SET inventory = catalogs.inventory - cart_items.quantity FROM cart_items WHERE catalogs.catalog_id = cart_items.catalog_id and cart_items.cart_id = :cart_id;"),
                             [{'cart_id':cart_id}])
 
-        # Remove the cart items from the customer's cart
-        # connection.execute(sqlalchemy.text("DELETE FROM cart_items WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
-
         # Delete the cart (the cart items will also be deleted as a consequence)
         connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
 
 
-    return {"total_potions_bought": num_potions, "total_gold_paid": 50*num_potions}
+    return {"total_potions_bought": num_potions, "total_gold_paid": potion_price*num_potions}
