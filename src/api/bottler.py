@@ -11,13 +11,17 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+index_to_ml = {0:'red_ml', 1:'green_ml', 2:'blue_ml', 3:'dark_ml'}
+
+barrel_to_bottle = {'SMALL_RED_BARREL':'RED_POTION_0', 'SMALL_GREEN_BARREL':'GREEN_POTION_0', 'SMALL_BLUE_BARREL':'BLUE_POTION_0'}
+
 class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
 
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
-    """ """
+    """ ml down, bottles up """
     print(potions_delivered)
 
     if potions_delivered == []:
@@ -28,56 +32,34 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
 
     with db.engine.begin() as connection:
 
-        mapper = {}
+        potion_name = inventory_transaction_id = connection.execute(sqlalchemy.text("SELECT name FROM catalogs WHERE red_ml = :red_value AND green_ml = :green_value AND blue_ml = :blue_value AND dark_ml = :dark_value;"),
+            [{'red_value':potions_delivered[0].potion_type[0], 'green_value':potions_delivered[0].potion_type[1], 'blue_value':potions_delivered[0].potion_type[2], 'dark_value':potions_delivered[0].potion_type[3]}]).scalar()
 
-        if potions_delivered[0].potion_type[0] > 0:
-            mapper['num_red_ml'] = potions_delivered[0].potion_type[0]
+        inventory_transaction_id = connection.execute(sqlalchemy.text(f"INSERT INTO inventory_transactions (description) VALUES ('Converting ml to make {potions_delivered[0].quantity} {potion_name} potions') RETURNING inventory_transaction_id;")).scalar()
 
-        if potions_delivered[0].potion_type[1] > 0:
-            mapper['num_green_ml'] = potions_delivered[0].potion_type[1]
+        for i in range(len(potions_delivered[0].potion_type)):
 
-        if potions_delivered[0].potion_type[2] > 0:
-            mapper['num_blue_ml'] = potions_delivered[0].potion_type[2]
+            if potions_delivered[0].potion_type[i] > 0:
 
-        global_inventory_result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        global_first_row = global_inventory_result.first()
-        
-        red_ml = global_first_row.num_red_ml
-        green_ml = global_first_row.num_green_ml
-        blue_ml = global_first_row.num_blue_ml
+                # potion_quantity_result = connection.execute(sqlalchemy.text(f"SELECT SUM(change) FROM shop_stats JOIN inventory_transactions ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name = {index_to_ml[i]}"))
 
-        # print('red ml in stock for potion', potion_type, ':', red_ml)
-        # print('green ml in stock for potion', potion_type, ':', green_ml)
-        # print('blue ml in stock for potion', potion_type, ':', blue_ml)
+                # inventory_transaction_id = connection.execute(sqlalchemy.text(f"INSERT INTO inventory_transactions (description) VALUES ('Reducing {index_to_ml[i]} by {potions_delivered[0].potion_type[i]}') RETURNING inventory_transaction_id;")).scalar()
 
-        # take a dictionary containing the ml requirements of the specific potion type
-        # ex: 50 50 0 0
-        # then filter out the zeros
+                shop_stat_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE shop_stats.name = :value"),
+                    [{'value':index_to_ml[i]}]).scalar()
+                
+                connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) VALUES (:inventory_transaction_id, :shop_stat_id, :change);"),
+                    [{'inventory_transaction_id':inventory_transaction_id, 'shop_stat_id':shop_stat_id, 'change':(-1 * potions_delivered[0].potion_type[i])}])
 
-        mixed_or_full = max(potions_delivered[0].potion_type)
-        requirement_nums = list(mapper.values())
-        ml_types = list(mapper.keys())
+        # sku = connection.execute(sqlalchemy.text("SELECT name FROM catalogs WHERE red_ml = :red AND green_ml = :green AND blue_ml = :blue AND dark_ml = :dark"),
+        #             [{'red':potions_delivered[0].potion_type[0], 'green':potions_delivered[0].potion_type[1], 'blue':potions_delivered[0].potion_type[2], 'dark':potions_delivered[0].potion_type[3]}]).scalar()
 
-        if(mixed_or_full == 100):
-            # Update the ml
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_types[0]} = {ml_types[0]} - :ml_consumed"),
-                [{'ml_consumed':(potions_delivered[0].quantity*mixed_or_full)}])
+        # inventory_transaction_id = connection.execute(sqlalchemy.text(f"INSERT INTO inventory_transactions (description) VALUES ('Brewed {potions_delivered[0].quantity} {sku}') RETURNING inventory_transaction_id;")).scalar()
 
-        elif(mixed_or_full == 50):
-            # Update the ml
-            connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_types[0]} = {ml_types[0]} - :ml_consumed, {ml_types[1]} = {ml_types[1]} - :ml_consumed"),
-                [{'ml_consumed': potions_delivered[0].quantity * mixed_or_full}])
+        shop_stat_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = :potion_name"), [{'potion_name':potion_name}])
 
-            # connection.execute(sqlalchemy.text("UPDATE global_inventory SET :ml_type1 = :ml_type1 - :ml_consumed, :ml_type2 = :ml_type2 - :ml_consumed"),
-            #     [{'ml_type1':ml_types[0], 'ml_type2':ml_types[1], 'ml_consumed':(potions_delivered[0].quantity*mixed_or_full)}])
-
-        # Update the inventory for this potion type
-        connection.execute(sqlalchemy.text(f"UPDATE catalogs SET inventory = inventory + :num_potions WHERE red = :red AND green = :green AND blue = :blue AND dark = :dark"),
-            [{'num_potions':potions_delivered[0].quantity,
-              'red':potions_delivered[0].potion_type[0],
-              'green':potions_delivered[0].potion_type[1],
-              'blue':potions_delivered[0].potion_type[2],
-              'dark':potions_delivered[0].potion_type[3]}])
+        connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) SELECT :inventory_transaction_id, shop_stat_id, :change FROM shop_stats WHERE name = :potion_name;"),
+                    [{'inventory_transaction_id':inventory_transaction_id, 'potion_name':potion_name, 'change':potions_delivered[0].quantity}])
 
     return "OK"
 
@@ -88,68 +70,35 @@ def get_bottle_plan():
     Go from barrel to bottle.
     """
 
-    # Each bottle has a quantity of what proportion of red, blue, and
-    # green potion to add.
-    # Expressed in integers from 1 to 100 that must sum up to 100.
-
     print('Planning to convert ml to bottles...')
 
-    ml_in_barrels = 0
-    num_potions_to_brew = 0
-    potion_type = [0, 0, 0, 0]
+    potion_plan = []
     with db.engine.begin() as connection:
 
-        # For assignment 3, I am giving priority to mixed potions to be brewed first
-        potion_result = connection.execute(sqlalchemy.text("SELECT * FROM catalogs ORDER BY inventory, CASE WHEN red != 100 AND green != 100 AND blue != 100 AND dark != 100 THEN 0 ELSE 1 END;"))
-        first_row = potion_result.first()
-        potion_type = [first_row.red, first_row.green, first_row.blue, first_row.dark]
+        # result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%POTION%' GROUP BY name ORDER BY amount LIMIT 1;"))
+        # chosen_row = result.first()
+        # potion_sku = chosen_row.name
 
-        global_inventory_result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        global_first_row = global_inventory_result.first()
-        red_ml = global_first_row.num_red_ml
-        green_ml = global_first_row.num_green_ml
-        blue_ml = global_first_row.num_blue_ml
+        # potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE sku = :potion_sku;"), [{'potion_sku':potion_sku}])
+        # catalog_row = potion_type_result.first()
 
-        mapper = {}
+        # potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
 
-        if first_row.red > 0:
-            mapper['num_red_ml'] = (first_row.red, red_ml)
+        # potion_ml_amount = max(potion_type)
 
-        if first_row.green > 0:
-            mapper['num_green_ml'] = (first_row.green, green_ml)
+        # Figure out later how to get number of potions, for now just hard code 5
+        # potion_quantity_result = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM shop_stats JOIN inventory_transactions ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name = 'green_ml' "))
 
-        if first_row.blue > 0:
-            mapper['num_blue_ml'] = (first_row.blue, blue_ml)
+        potion_to_brew = barrel_to_bottle[connection.execute(sqlalchemy.text("SELECT SPLIT_PART(SPLIT_PART(description, ' ', 2), ' ', 1) AS last_barrel_purchased FROM inventory_transactions WHERE description LIKE '%BARREL%' ORDER BY created_at DESC LIMIT 1;")).scalar()]
 
-        print('red ml in stock for potion', potion_type, ':', red_ml)
-        print('green ml in stock for potion', potion_type, ':', green_ml)
-        print('blue ml in stock for potion', potion_type, ':', blue_ml)
+        potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE name = :potion_sku;"), [{'potion_sku':potion_to_brew}])
+        catalog_row = potion_type_result.first()
 
-        # take a dictionary containing the ml requirements of the specific potion type
-        # ex: 50 50 0 0
-        # then filter out the zeros
+        potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
 
-        mixed_or_full = max(potion_type)
-        requirement_nums = list(mapper.values())
-        ml_types = list(mapper.keys())
+        potion_plan.append({
+            "potion_type": potion_type,
+            "quantity": 5
+        })
 
-        if(mixed_or_full == 100):
-            # Brew up to 5 potions of a single color
-            num_potions_to_brew = min(requirement_nums[0][1] // 100, 5)
-            # connection.execute(sqlalchemy.text("UPDATE global_inventory SET :ml_type = :ml_type - :ml_consumed"),
-            #     [{'ml_type':ml_types[0], 'ml_consumed':(num_potions_to_brew*100)}])
-        elif(mixed_or_full == 50):
-            # Brew up to 5 potions of a mixed color
-            # For now, we assume we can only mix 50/50 potions
-            num_potions_to_brew = min(min(requirement_nums[0][1] // 50, requirement_nums[1][1] // 50), 5)
-            # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
-
-    if num_potions_to_brew == 0:
-        return []
-
-    return [
-            {
-                "potion_type": potion_type,
-                "quantity": num_potions_to_brew,
-            }
-        ]
+    return potion_plan

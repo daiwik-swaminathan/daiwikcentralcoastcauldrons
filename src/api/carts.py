@@ -51,7 +51,7 @@ def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     quantity = cart_item.quantity
 
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("INSERT INTO cart_items (cart_id, quantity, catalog_id) SELECT :cart_id, :quantity, catalogs.catalog_id FROM catalogs WHERE catalogs.sku = :item_sku"),
+        connection.execute(sqlalchemy.text("INSERT INTO cart_items (cart_id, quantity, catalog_id) SELECT :cart_id, :quantity, catalogs.catalog_id FROM catalogs WHERE catalogs.name = :item_sku"),
         [{"cart_id": cart_id, "quantity": quantity, "item_sku": item_sku}])
 
     return "OK"
@@ -68,34 +68,33 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     print('cart checkout is:', cart_checkout.payment)
 
-    num_potions = 0
-    gold = 0
-    potion_type = ''
+    # revenue = (potion_price * num_potions)
+
+    # Update the table
     with db.engine.begin() as connection:
-
-        # Gets the sum of the number of potions in the cart
-        num_potions_result = connection.execute(sqlalchemy.text("SELECT SUM(quantity) FROM cart_items JOIN catalogs ON cart_items.catalog_id = catalogs.catalog_id WHERE catalogs.inventory > 0 AND cart_items.cart_id = :cart_id;"),
-                                         [{'cart_id':cart_id}])
-        num_potions = num_potions_result.scalar()
-
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        first_row = result.first()
-
-        gold = first_row.gold
 
         price_result = connection.execute(sqlalchemy.text("SELECT price FROM cart_items JOIN catalogs ON catalogs.catalog_id = cart_items.catalog_id WHERE cart_id = :cart_id LIMIT 1;"), [{'cart_id':cart_id}])
         potion_price = price_result.scalar()
 
-    print('Buying', num_potions, 'potions...')
+        customer_name = connection.execute(sqlalchemy.text("SELECT customer_name FROM carts WHERE cart_id = :cart_id;"), [{'cart_id':cart_id}]).scalar()
 
-    # For now, we sell all the potions in inventory
-    gold += (potion_price * num_potions)
+        # Create checkout transaction
+        checkout_transaction_id = connection.execute(sqlalchemy.text(f"INSERT INTO inventory_transactions (description) VALUES ('{customer_name} completed their checkout') RETURNING inventory_transaction_id;")).scalar()
+        
+        # Note down update to potion inventories
+        num_potions = 0
+        result = connection.execute(sqlalchemy.text("SELECT * FROM cart_items JOIN catalogs on cart_items.catalog_id = catalogs.catalog_id JOIN shop_stats ON catalogs.name = shop_stats.name"))
+        for row in result:
+            print('hi there')
+            num_potions += row.quantity
+            shop_stat_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = :potion_name"), [{'potion_name':row.name}]).scalar()
+            connection.execute(sqlalchemy.text(f"INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) SELECT :checkout_transaction_id, :shop_stat_id, :change;"),
+                [{'checkout_transaction_id':checkout_transaction_id, 'shop_stat_id':shop_stat_id, 'change':(-1*row.quantity)}])
 
-    # Update the table
-    with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET gold = :gold"), [{'gold':gold}])
-        connection.execute(sqlalchemy.text("UPDATE catalogs SET inventory = catalogs.inventory - cart_items.quantity FROM cart_items WHERE catalogs.catalog_id = cart_items.catalog_id and cart_items.cart_id = :cart_id;"),
-                            [{'cart_id':cart_id}])
+        # Noting down update to gold
+        shop_stat_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = 'gold'")).scalar()
+        connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) SELECT :checkout_transaction_id, :shop_stat_id, :revenue;"),
+            [{'checkout_transaction_id':checkout_transaction_id, 'shop_stat_id':shop_stat_id, 'revenue':num_potions*potion_price}])
 
         # Delete the cart (the cart items will also be deleted as a consequence)
         connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])

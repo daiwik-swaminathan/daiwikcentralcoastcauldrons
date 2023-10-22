@@ -10,6 +10,9 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+ml_to_barrel = {'red_ml':'SMALL_RED_BARREL', 'green_ml':'SMALL_GREEN_BARREL', 'blue_ml':'SMALL_BLUE_BARREL'}
+barrel_to_ml = {'SMALL_RED_BARREL':'red_ml', 'SMALL_GREEN_BARREL':'green_ml', 'SMALL_BLUE_BARREL':'blue_ml'}
+
 class Barrel(BaseModel):
     sku: str
 
@@ -30,63 +33,22 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 
     print(barrels_delivered)
 
-    # ml_in_barrels = 0
-    red_ml = 0
-    green_ml = 0
-    blue_ml = 0
-    gold = 0
-    ml_type = ''
     with db.engine.begin() as connection:
 
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        first_row = result.first()
-
-        gold = first_row.gold
-
-        # if barrels_delivered[0].sku == 'SMALL_RED_BARREL':
-        #     print('Received small red barrel')
-        #     red_ml = first_row.num_red_ml
-        #     ml_type = 'num_red_ml'
-        # elif barrels_delivered[0].sku == 'SMALL_GREEN_BARREL':
-        #     print('Received small green barrel')
-        #     green_ml = first_row.num_green_ml
-        #     ml_type = 'num_green_ml'
-        # else:
-        #     print('Received small blue barrel')
-        #     blue_ml = first_row.num_blue_ml
-        #     ml_type = 'num_blue_ml'
-
-        cost = 0
-
         for barrel in barrels_delivered:
-            if barrel.sku == 'SMALL_RED_BARREL':
-                print('Received small red barrel')
-                red_ml = first_row.num_red_ml + barrel.ml_per_barrel
-                print('red ml will now be:', red_ml)
-            elif barrel.sku == 'SMALL_GREEN_BARREL':
-                print('Received small green barrel')
-                green_ml = first_row.num_green_ml + barrel.ml_per_barrel
-                print('green ml will now be:', green_ml)
-            else:
-                print('Received small blue barrel')
-                blue_ml = first_row.num_blue_ml + barrel.ml_per_barrel
-                print('blue ml will now be:', blue_ml)
-            cost += barrel.price
 
-        # Buying a small red, green, and blue barrel
-        print('Converting to ml...')
-        gold -= cost
+            ml_amount = barrel.ml_per_barrel
 
-        print('Barrel deliver endpoint')
-        print('gold is:', gold)
+            ml_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = :ml_type;"), [{'ml_type':barrel_to_ml[barrel.sku]}]).scalar()
+            gold_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = 'gold';")).scalar()
 
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET {ml_type} = {ml_in_barrels}"))
-        # connection.execute(sqlalchemy.text(f"UPDATE global_inventory SET gold = {gold}"))
+            # barrel_transaction_id = connection.execute(sqlalchemy.text("INSERT INTO inventory_transactions (description) VALUES ('Purchased :barrel for :price gold to make :amount_ml ml') RETURNING inventory_transaction_id;"),
+            #     [{'barrel':barrel.sku, 'price':barrel.price, 'amount_ml':ml_amount}]).scalar()
 
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET gold = :gold"), [{'gold':gold}])
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_ml = :red_ml"), [{'red_ml':red_ml}])
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_green_ml = :green_ml"), [{'green_ml':green_ml}])
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = :blue_ml"), [{'blue_ml':blue_ml}])
+            barrel_transaction_id = connection.execute(sqlalchemy.text(f"INSERT INTO inventory_transactions (description) VALUES ('Purchased {barrel.sku} for {barrel.price} gold to make {ml_amount} ml') RETURNING inventory_transaction_id;")).scalar()
+
+            connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) VALUES (:barrel_transaction_id, :ml_id, :amount_ml), (:barrel_transaction_id, :gold_id, :cost);"),
+                [{'barrel_transaction_id':barrel_transaction_id, 'ml_id':ml_id, 'gold_id':gold_id, 'amount_ml':ml_amount, 'cost':(-1*barrel.price)}])
 
     return "OK"
 
@@ -99,58 +61,19 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
     print(wholesale_catalog)
 
-    # Parse through the barrel merchant's catalog
+    barrels = []
 
-    # My logic is that the shop will only buy one barrel at a time
-    # It will switch out which barrel it buys.
-    # Ex: It will first look to buy a green barrel, blue barrel, red barrel, and then back to green.
+    with db.engine.begin() as connection:
 
-    # Get which kind of barrel was purchased last
-    # barrel_to_buy = 0
-    # with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%ml%' GROUP BY name ORDER BY amount LIMIT 1;"))
+        chosen_row = result.first()
 
-    #     result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-    #     first_row = result.first()
+        print(chosen_row)
 
-    #     barrel_to_buy = first_row.barrel_to_buy
+        barrels.append( 
+            {
+                "sku": ml_to_barrel[chosen_row.name],
+                "quantity": 1
+            } ) 
 
-    #     print('Last barrel type is:', barrel_to_buy)
-
-    # # Go through the merchant's catalog and figure out which barrel we should buy this time
-    # for barrel in wholesale_catalog:
-
-    #     # If the red barrel is available AND the last barrel purchased was a blue barrel
-    #     if barrel.sku == 'SMALL_RED_BARREL' and barrel_to_buy == 0:
-    #         print('Buying a small red barrel')
-            
-    #         return [
-    #             {
-    #                 "sku": "SMALL_RED_BARREL",
-    #                 "quantity": 1,
-    #             }
-    #         ] 
-        
-    #     # If the green barrel is available AND the last barrel purchased was a red barrel
-    #     if barrel.sku == 'SMALL_GREEN_BARREL' and barrel_to_buy == 1:
-    #         print('Buying a small green barrel')
-            
-    #         return [
-    #             {
-    #                 "sku": "SMALL_GREEN_BARREL",
-    #                 "quantity": 1,
-    #             }
-    #         ]
-
-    #     # If the blue barrel is available AND the last barrel purchased was a green barrel
-    #     if barrel.sku == 'SMALL_BLUE_BARREL' and barrel_to_buy == 2:
-    #         print('Buying a small blue barrel')
-            
-    #         return [
-    #             {
-    #                 "sku": "SMALL_BLUE_BARREL",
-    #                 "quantity": 1,
-    #             }
-    #         ]
-
-    # Need to slow my roll with the barrel purchases...
-    return []
+    return barrels

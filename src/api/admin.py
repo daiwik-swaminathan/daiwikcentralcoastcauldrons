@@ -21,18 +21,17 @@ def reset():
 
     # Update the table
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_ml = 0"))
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_green_ml = 0"))
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_blue_ml = 0"))
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET gold = 100"))
-        connection.execute(sqlalchemy.text("UPDATE global_inventory SET barrel_to_buy = 0"))
+
+        # Reset everything transaction and ledger related
+        connection.execute(sqlalchemy.text("TRUNCATE inventory_transactions CASCADE"))
+
+        result = connection.execute(sqlalchemy.text("INSERT INTO inventory_transactions (description) VALUES ('Shop burnt down...everything back to zero, gold set to 100') RETURNING inventory_transaction_id;"))
+        reset_transaction_id = result.scalar()
+        
+        connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) SELECT :reset_transaction_id, shop_stat_id, CASE WHEN name = 'gold' THEN 100 ELSE 0 END FROM shop_stats;"), [{'reset_transaction_id':reset_transaction_id}])
 
         # Reset carts
-        connection.execute(sqlalchemy.text("TRUNCATE carts"))
-        connection.execute(sqlalchemy.text("TRUNCATE cart_items"))
-
-        # Empty potion inventory
-        connection.execute(sqlalchemy.text("UPDATE catalogs SELECT inventory = 0"))
+        connection.execute(sqlalchemy.text("TRUNCATE carts CASCADE"))
 
         print('Updated the database table')
 

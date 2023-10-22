@@ -22,17 +22,11 @@ def get_inventory():
     gold = 0
     with db.engine.begin() as connection:
 
-        result = connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
-        first_row = result.first()
+        gold = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM inventory_ledger_entries JOIN shop_stats ON inventory_ledger_entries.shop_stat_id = shop_stats.shop_stat_id WHERE shop_stats.name = 'gold' ")).scalar()
 
-        gold = first_row.gold
+        ml_in_barrels = connection.execute(sqlalchemy.text("SELECT SUM(change) AS total_potion_change FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%ml%';")).scalar()
 
-        sum_result = connection.execute(sqlalchemy.text("SELECT SUM(inventory) FROM catalogs"))
-        num_potions = sum_result.scalar()
-
-        ml_in_barrels = first_row.num_red_ml
-        ml_in_barrels += first_row.num_green_ml
-        ml_in_barrels += first_row.num_blue_ml
+        num_potions = connection.execute(sqlalchemy.text("SELECT SUM(change) AS total_potion_change FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%POTION%';")).scalar()
 
     print('ml_in_barrels is', ml_in_barrels)
     print('num_potions is', num_potions)
