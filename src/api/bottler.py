@@ -89,7 +89,12 @@ def get_bottle_plan():
         # Figure out later how to get number of potions, for now just hard code 5
         # potion_quantity_result = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM shop_stats JOIN inventory_transactions ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name = 'green_ml' "))
 
-        potion_to_brew = barrel_to_bottle[connection.execute(sqlalchemy.text("SELECT SPLIT_PART(SPLIT_PART(description, ' ', 2), ' ', 1) AS last_barrel_purchased FROM inventory_transactions WHERE description LIKE '%BARREL%' ORDER BY created_at DESC LIMIT 1;")).scalar()]
+        last_barrel_purchased = connection.execute(sqlalchemy.text("SELECT SPLIT_PART(SPLIT_PART(description, ' ', 2), ' ', 1) AS last_barrel_purchased FROM inventory_transactions WHERE description LIKE '%BARREL%' ORDER BY created_at DESC LIMIT 1;")).scalar()
+        
+        if last_barrel_purchased is None:
+            return potion_plan
+
+        potion_to_brew = barrel_to_bottle[last_barrel_purchased]
 
         potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE name = :potion_sku;"), [{'potion_sku':potion_to_brew}])
         catalog_row = potion_type_result.first()

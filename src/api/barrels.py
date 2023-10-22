@@ -65,8 +65,22 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
 
     with db.engine.begin() as connection:
 
-        result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%ml%' GROUP BY name ORDER BY amount LIMIT 1;"))
-        chosen_row = result.first()
+        gold = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM inventory_ledger_entries JOIN shop_stats ON inventory_ledger_entries.shop_stat_id = shop_stats.shop_stat_id WHERE shop_stats.name = 'gold' ")).scalar()
+
+        result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%ml%' GROUP BY name ORDER BY amount;"))
+        chosen_row = result.fetchone()
+
+        for barrel in wholesale_catalog:
+
+            print('barrel sku is:', barrel.sku, ' and chosen row name is:', chosen_row.name)
+
+            print('gold is:', gold, ' and price is:', barrel.price)
+
+            if barrel.sku == ml_to_barrel[chosen_row.name] and gold < barrel.price:
+
+                print('hello')
+                chosen_row = result.fetchone()
+                break
 
         print(chosen_row)
 
