@@ -101,6 +101,8 @@ def get_bottle_plan():
 
         potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
 
+        # You would need to loop through potion type to see if you have enough ml to brew the 5 potions
+
         potion_plan.append({
             "potion_type": potion_type,
             "quantity": 5
