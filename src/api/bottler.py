@@ -49,7 +49,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory]):
                     [{'value':index_to_ml[i]}]).scalar()
                 
                 connection.execute(sqlalchemy.text("INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) VALUES (:inventory_transaction_id, :shop_stat_id, :change);"),
-                    [{'inventory_transaction_id':inventory_transaction_id, 'shop_stat_id':shop_stat_id, 'change':(-1 * potions_delivered[0].potion_type[i])}])
+                    [{'inventory_transaction_id':inventory_transaction_id, 'shop_stat_id':shop_stat_id, 'change':(potions_delivered[0].quantity * -1 * potions_delivered[0].potion_type[i])}])
 
         # sku = connection.execute(sqlalchemy.text("SELECT name FROM catalogs WHERE red_ml = :red AND green_ml = :green AND blue_ml = :blue AND dark_ml = :dark"),
         #             [{'red':potions_delivered[0].potion_type[0], 'green':potions_delivered[0].potion_type[1], 'blue':potions_delivered[0].potion_type[2], 'dark':potions_delivered[0].potion_type[3]}]).scalar()
