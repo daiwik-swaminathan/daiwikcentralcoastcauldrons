@@ -73,39 +73,39 @@ def get_bottle_plan():
     print('Planning to convert ml to bottles...')
 
     potion_plan = []
-    with db.engine.begin() as connection:
+    # with db.engine.begin() as connection:
 
-        # result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%POTION%' GROUP BY name ORDER BY amount LIMIT 1;"))
-        # chosen_row = result.first()
-        # potion_sku = chosen_row.name
+    #     # result = connection.execute(sqlalchemy.text("SELECT shop_stats.name, SUM(change) as amount FROM shop_stats JOIN inventory_ledger_entries ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name LIKE '%POTION%' GROUP BY name ORDER BY amount LIMIT 1;"))
+    #     # chosen_row = result.first()
+    #     # potion_sku = chosen_row.name
 
-        # potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE sku = :potion_sku;"), [{'potion_sku':potion_sku}])
-        # catalog_row = potion_type_result.first()
+    #     # potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE sku = :potion_sku;"), [{'potion_sku':potion_sku}])
+    #     # catalog_row = potion_type_result.first()
 
-        # potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
+    #     # potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
 
-        # potion_ml_amount = max(potion_type)
+    #     # potion_ml_amount = max(potion_type)
 
-        # Figure out later how to get number of potions, for now just hard code 5
-        # potion_quantity_result = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM shop_stats JOIN inventory_transactions ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name = 'green_ml' "))
+    #     # Figure out later how to get number of potions, for now just hard code 5
+    #     # potion_quantity_result = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM shop_stats JOIN inventory_transactions ON shop_stats.shop_stat_id = inventory_ledger_entries.shop_stat_id WHERE shop_stats.name = 'green_ml' "))
 
-        last_barrel_purchased = connection.execute(sqlalchemy.text("SELECT SPLIT_PART(SPLIT_PART(description, ' ', 2), ' ', 1) AS last_barrel_purchased FROM inventory_transactions WHERE description LIKE '%BARREL%' ORDER BY created_at DESC LIMIT 1;")).scalar()
+    #     last_barrel_purchased = connection.execute(sqlalchemy.text("SELECT SPLIT_PART(SPLIT_PART(description, ' ', 2), ' ', 1) AS last_barrel_purchased FROM inventory_transactions WHERE description LIKE '%BARREL%' ORDER BY created_at DESC LIMIT 1;")).scalar()
         
-        if last_barrel_purchased is None:
-            return potion_plan
+    #     if last_barrel_purchased is None:
+    #         return potion_plan
 
-        potion_to_brew = barrel_to_bottle[last_barrel_purchased]
+    #     potion_to_brew = barrel_to_bottle[last_barrel_purchased]
 
-        potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE name = :potion_sku;"), [{'potion_sku':potion_to_brew}])
-        catalog_row = potion_type_result.first()
+    #     potion_type_result = connection.execute(sqlalchemy.text("SELECT red_ml, green_ml, blue_ml, dark_ml FROM catalogs WHERE name = :potion_sku;"), [{'potion_sku':potion_to_brew}])
+    #     catalog_row = potion_type_result.first()
 
-        potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
+    #     potion_type = [catalog_row.red_ml, catalog_row.green_ml, catalog_row.blue_ml, catalog_row.dark_ml]
 
-        # You would need to loop through potion type to see if you have enough ml to brew the 5 potions
+    #     # You would need to loop through potion type to see if you have enough ml to brew the 5 potions
 
-        potion_plan.append({
-            "potion_type": potion_type,
-            "quantity": 5
-        })
+    #     potion_plan.append({
+    #         "potion_type": potion_type,
+    #         "quantity": 5
+    #     })
 
     return potion_plan
