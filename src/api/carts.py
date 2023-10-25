@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
@@ -88,6 +88,20 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             print('hi there')
             num_potions += row.quantity
             shop_stat_id = connection.execute(sqlalchemy.text("SELECT shop_stat_id FROM shop_stats WHERE name = :potion_name"), [{'potion_name':row.name}]).scalar()
+
+            # Add check to ensure there are still available potions to buy
+            num_potions_available = connection.execute(sqlalchemy.text("SELECT SUM(change) FROM inventory_ledger_entries WHERE shop_stat_id = :shop_stat_id",
+                                                                       ), [{'shop_stat_id':shop_stat_id}]).scalar()
+            
+            if num_potions_available < row.quantity:
+                # Throw HTTP error here
+
+                # Delete the cart first (the cart items will also be deleted as a consequence)
+                connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
+
+                error_message = "Not enough potions available to buy."
+                raise HTTPException(status_code=400, detail=error_message)
+
             connection.execute(sqlalchemy.text(f"INSERT INTO inventory_ledger_entries (inventory_transaction_id, shop_stat_id, change) SELECT :checkout_transaction_id, :shop_stat_id, :change;"),
                 [{'checkout_transaction_id':checkout_transaction_id, 'shop_stat_id':shop_stat_id, 'change':(-1*row.quantity)}])
 
