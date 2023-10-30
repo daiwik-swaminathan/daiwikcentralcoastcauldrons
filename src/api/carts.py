@@ -65,6 +65,11 @@ def search_orders(
 
     with db.engine.connect() as conn:
 
+        if search_page != '':
+            offset = int(search_page)
+        else:
+            offset = 0
+
         order_by = None
 
         metadata = MetaData()
@@ -101,7 +106,7 @@ def search_orders(
                       metadata.tables['catalogs'].c.price,
                       metadata.tables['cart_items'].c.time_created)
             .limit(5)
-            .offset(0)
+            .offset(offset * 5)
             .order_by(order_by)
         )
 
@@ -133,9 +138,17 @@ def search_orders(
 
     # return json
 
+    previous_page = ''
+    next_page = ''
+
+    if offset > 0:
+        previous_page = str(offset - 1)
+
+    next_page = str(offset + 1)
+
     return {
-        "previous": "",
-        "next": "",
+        "previous": previous_page,
+        "next": next_page,
         "results": json
     }
 
