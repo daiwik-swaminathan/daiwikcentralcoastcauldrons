@@ -96,7 +96,8 @@ def search_orders(
                 func.upper(metadata.tables['carts'].c.customer_name).label('customer'),
                 metadata.tables['catalogs'].c.name.label('item'),
                 (metadata.tables['catalogs'].c.price * func.sum(metadata.tables['cart_items'].c.quantity)).label('gold'),
-                metadata.tables['cart_items'].c.time_created.label('time')
+                metadata.tables['cart_items'].c.time_created.label('time'),
+                metadata.tables['cart_items'].c.quantity
             )
             .select_from(
                 metadata.tables['carts'].join(metadata.tables['cart_items'], metadata.tables['carts'].c.cart_id == metadata.tables['cart_items'].c.cart_id)
@@ -104,7 +105,8 @@ def search_orders(
             .group_by(metadata.tables['carts'].c.customer_name,
                       metadata.tables['catalogs'].c.name,
                       metadata.tables['catalogs'].c.price,
-                      metadata.tables['cart_items'].c.time_created)
+                      metadata.tables['cart_items'].c.time_created,
+                      metadata.tables['cart_items'].c.quantity)
             .limit(5)
             .offset(offset * 5)
             .order_by(order_by)
@@ -125,10 +127,14 @@ def search_orders(
 
         i = 0
         for row in result:
+            item_desc = ''
+            item_desc += str(row.quantity)
+            item_desc += ' '
+            item_desc += row.item
             json.append(
             {
                 "line_item_id": i,
-                "item_sku": row.item,
+                "item_sku": item_desc,
                 "customer_name": row.customer,
                 "line_item_total": row.gold,
                 "timestamp": row.time,
