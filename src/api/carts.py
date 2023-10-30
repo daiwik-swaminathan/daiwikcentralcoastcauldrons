@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
+from sqlalchemy import func, MetaData
 from src import database as db
 
 temp_cart_table = {}
@@ -55,20 +56,87 @@ def search_orders(
     customer name, line item total (in gold), and timestamp of the order.
     Your results must be paginated, the max results you can return at any
     time is 5 total line items.
+
+    customer_name = "customer_name"
+    item_sku = "item_sku"
+    line_item_total = "line_item_total"
+    timestamp = "timestamp"
     """
+
+    with db.engine.connect() as conn:
+
+        order_by = None
+
+        metadata = MetaData()
+        metadata.reflect(bind=db.engine)
+
+        if sort_col is search_sort_options.customer_name:
+            order_by = metadata.tables['carts'].c.customer_name
+        elif sort_col is search_sort_options.item_sku:
+            order_by = metadata.tables['catalogs'].c.name
+        elif sort_col is search_sort_options.line_item_total:
+            order_by = metadata.tables['catalogs'].c.price * func.sum(metadata.tables['cart_items'].c.quantity)
+        elif sort_col is search_sort_options.timestamp:
+            order_by = metadata.tables['cart_items'].c.time_created
+        else:
+            assert False
+
+        if sort_order is search_sort_order.asc:
+            order_by = order_by.asc()
+        else:
+            order_by = order_by.desc()
+
+        stmt = (
+            sqlalchemy.select(
+                func.upper(metadata.tables['carts'].c.customer_name).label('customer'),
+                metadata.tables['catalogs'].c.name.label('item'),
+                (metadata.tables['catalogs'].c.price * func.sum(metadata.tables['cart_items'].c.quantity)).label('gold'),
+                metadata.tables['cart_items'].c.time_created.label('time')
+            )
+            .select_from(
+                metadata.tables['carts'].join(metadata.tables['cart_items'], metadata.tables['carts'].c.cart_id == metadata.tables['cart_items'].c.cart_id)
+                .join(metadata.tables['catalogs'], metadata.tables['cart_items'].c.catalog_id == metadata.tables['catalogs'].c.catalog_id))
+            .group_by(metadata.tables['carts'].c.customer_name,
+                      metadata.tables['catalogs'].c.name,
+                      metadata.tables['catalogs'].c.price,
+                      metadata.tables['cart_items'].c.time_created)
+            .limit(5)
+            .offset(0)
+            .order_by(order_by)
+        )
+
+        # filter only if name parameter is passed
+        if customer_name != "":
+            customer_name = customer_name.upper()
+            stmt = stmt.where(metadata.tables['carts'].c.customer_name.ilike(f"%{customer_name}%"))
+
+        # filter only if potion_sku parameter is passed
+        if potion_sku != "":
+            potion_sku = potion_sku.upper()
+            stmt = stmt.where(metadata.tables['catalogs'].c.name.ilike(f"%{potion_sku}%"))
+
+        result = conn.execute(stmt)
+        json = []
+
+        i = 0
+        for row in result:
+            json.append(
+            {
+                "line_item_id": i,
+                "item_sku": row.item,
+                "customer_name": row.customer,
+                "line_item_total": row.gold,
+                "timestamp": row.time,
+            })
+            i += 1
+
+
+    # return json
 
     return {
         "previous": "",
         "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
+        "results": json
     }
 
 
@@ -155,7 +223,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
                 # Throw HTTP error here
 
                 # Delete the cart first (the cart items will also be deleted as a consequence)
-                connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
+                # connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
 
                 error_message = "Not enough potions available to buy."
                 raise HTTPException(status_code=400, detail=error_message)
@@ -169,7 +237,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
             [{'checkout_transaction_id':checkout_transaction_id, 'shop_stat_id':shop_stat_id, 'revenue':num_potions*potion_price}])
 
         # Delete the cart (the cart items will also be deleted as a consequence)
-        connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
+        # connection.execute(sqlalchemy.text("DELETE FROM carts WHERE cart_id = :cart_id"), [{'cart_id':cart_id}])
 
 
     return {"total_potions_bought": num_potions, "total_gold_paid": potion_price*num_potions}
